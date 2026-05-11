@@ -3,9 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
-# ================================
-# WCZYTANIE I CZYSZCZENIE DANYCH
-# ================================
+# wczytanie i czyszczenie
 
 df = pd.read_csv('Houses.csv', encoding='cp1250')
 df = df.drop(columns=['Unnamed: 0', 'id'])
@@ -25,11 +23,7 @@ for miasto, limit in limity.items():
 df = df[~df['address'].str.lower().str.contains('wielkopolskie|małopolskie|mazowieckie')]
 df = df[~((df['address'] == 'Grunwald Łazarz') & (df['year'] == 1899))]
 
-print(f"✅ Dane gotowe! Rekordów: {len(df)}")
-
-# ================================
-# WYKRES 1: Metraż vs cena wg liczby pokoi — 3 miasta
-# ================================
+# wykres 1
 
 fig, axes = plt.subplots(3, 1, figsize=(11, 18))
 
@@ -38,7 +32,6 @@ df_pokoje = df[df['rooms'].between(1, 5)].copy()
 df_pokoje['rooms'] = df_pokoje['rooms'].astype(int)
 miasta = ['Warszawa', 'Kraków', 'Poznań']
 
-# Jednakowe zakresy osi dla wszystkich miast
 X_TICKS = [15, 30, 50, 75, 100, 150, 200, 300]
 Y_TICKS = [100, 300, 500, 750, 1000, 1500, 2000, 3000, 5000, 10000]
 X_LIM = (14, 310)
@@ -52,17 +45,14 @@ for ax, miasto in zip(axes, miasta):
         if len(subset) == 0:
             continue
 
-        # Punkty
         ax.scatter(subset['sq'], subset['price'] / 1000,
                    alpha=0.2, s=12, color=kolor, label=f'{pokoje} pokój/e')
 
-        # Średni punkt
         sr_sq = subset['sq'].mean()
         sr_cena = subset['price'].mean() / 1000
         ax.scatter(sr_sq, sr_cena, color=kolor, s=140,
                    zorder=5, edgecolors='black', linewidths=1.2)
 
-        # Opis zawsze NAD punktem
         ax.annotate(f'{sr_sq:.0f} m²\n{sr_cena:.0f} tys. zł',
                     xy=(sr_sq, sr_cena),
                     xytext=(0, 14),
@@ -97,13 +87,10 @@ for ax, miasto in zip(axes, miasta):
 plt.tight_layout(pad=3.0)
 plt.savefig('wykres1_metraz_pokoje.png', dpi=150)
 plt.close()
-print("✅ Wykres 1 gotowy")
 
-# ================================
-# WYKRES 2: Cena za m² vs odległość od centrum
-# ================================
+# wykres 2
 centra = {
-    'Warszawa': (52.2317, 21.0062),  # Pałac Kultury i Nauki
+    'Warszawa': (52.2317, 21.0062),  # Pałac Kultury 
     'Kraków':   (50.0617, 19.9372),  # Sukiennice
     'Poznań':   (52.4082, 16.9335),  # Stary Rynek
 }
@@ -143,17 +130,14 @@ for ax, miasto in zip(axes, miasta):
     y_max = stats['q75'].max() * 1.55
     ax.set_ylim(0, y_max)
 
-    # Słupki średniej
     ax.bar(x, stats['srednia'], color=kolory_stref[:len(stats)],
            width=0.6, zorder=3)
 
-    # Przedział 25-75 percentyl
     ax.errorbar(x, stats['srednia'],
                 yerr=[stats['srednia'] - stats['q25'],
                       stats['q75'] - stats['srednia']],
                 fmt='none', color='black', capsize=5, linewidth=1.5, zorder=4)
 
-    # Ceny tuż nad górnym error barem
     for i, row in stats.iterrows():
         ax.text(x_list[i], row['q75'] + y_max * 0.02,
                 f"{row['srednia']:,.0f} zł/m²",
@@ -167,22 +151,18 @@ for ax, miasto in zip(axes, miasta):
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f'{v:,.0f} zł'))
     ax.grid(axis='y', alpha=0.3, zorder=0)
 
-    # Druga oś Y — liczba ogłoszeń
     ax2 = ax.twinx()
     n_max = stats['n'].max() * 1.55
     ax2.set_ylim(0, n_max)
 
-    # Poświata pod linią
     ax2.fill_between(x_list, stats['n'], alpha=0.12, color='#FF6F00', zorder=1)
 
-    # Linia
     ax2.plot(x_list, stats['n'], color='#FF6F00', linewidth=2,
              marker='o', markersize=7, zorder=5)
 
     ax2.set_ylabel('Liczba ogłoszeń', fontsize=10, color='#FF6F00')
     ax2.tick_params(axis='y', labelcolor='#FF6F00')
 
-    # n= w lewym górnym skosie od punktu
     for i, row in stats.iterrows():
         ax2.annotate(f"n={row['n']}",
                      xy=(x_list[i], row['n']),
@@ -192,7 +172,6 @@ for ax, miasto in zip(axes, miasta):
                      color='#FF6F00', fontweight='bold', zorder=6,
                      bbox=dict(boxstyle='round,pad=0.15', fc='white', alpha=0.95, ec='none'))
 
-    # Legenda zawsze w prawym dolnym rogu gdzie jest najmniej danych
     ax.set_title(f'{miasto} — średnia cena za m² według odległości od centrum\n'
                  f'(słupki błędów = przedział 25-75 percentyl)',
                  fontsize=12, fontweight='bold')
@@ -200,17 +179,13 @@ for ax, miasto in zip(axes, miasta):
 plt.tight_layout(pad=3.0)
 plt.savefig('wykres2_odleglosc_centrum.png', dpi=150)
 plt.close()
-print("✅ Wykres 2 gotowy — cena vs odleglosc od centrum")
 
-# ================================
-# WYKRES 3: Treemap — nowe inwestycje wg dzielnicy
-# ================================
+# wykres 3
 
 import squarify
 
-# Wyciągamy pierwszą dzielnicę z adresu (pierwsze 1-2 słowa)
 def wyciagnij_dzielnice(address):
-    # Dzielnice wieloczłonowe które chcemy zachować razem
+    
     wieloczlonowe = [
         'Praga-Południe', 'Praga-Północ', 'Prądnik Czerwony', 'Prądnik Biały',
         'Nowa Huta', 'Stare Miasto', 'Nowe Miasto', 'Bieżanów-Prokocim',
@@ -230,8 +205,6 @@ miasta = ['Warszawa', 'Kraków', 'Poznań']
 for ax, miasto in zip(axes, miasta):
     sub = nowe[nowe['city'] == miasto]
     counts = sub['dzielnica'].value_counts()
-
-    # Zostawiamy top 12 dzielnic, resztę grupujemy jako "Inne"
     top = counts.head(12)
     inne = counts.iloc[12:].sum()
     if inne > 0:
@@ -240,10 +213,8 @@ for ax, miasto in zip(axes, miasta):
     total = top.sum()
     procenty = (top / total * 100).round(1)
 
-    # Kolory — gradient zielony, ciemniejszy = więcej inwestycji
     import matplotlib.cm as cm
     n = len(top)
-    # Sortujemy od największego do najmniejszego — już są posortowane przez value_counts
     kolory = [cm.Greens(0.35 + 0.55 * (n - i) / n) for i in range(n)]
 
     squarify.plot(
@@ -263,7 +234,3 @@ plt.suptitle('Udział nowych inwestycji (2010+) według dzielnicy',
 plt.tight_layout()
 plt.savefig('wykres3_treemap_dzielnice.png', dpi=150, bbox_inches='tight')
 plt.close()
-print("✅ Wykres 3 gotowy — treemap nowe inwestycje")
-
-nowe = df[df['year'] >= 2010]
-print(nowe['city'].value_counts())
